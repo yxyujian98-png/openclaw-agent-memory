@@ -1,3 +1,8 @@
+---
+name: openclaw-memory-system
+description: "OpenClaw 记忆系统：Obsidian vault 同步、Qdrant 向量检索、零 LLM 压缩、自愈监控 | Memory system for OpenClaw agents: vault sync, vector search, zero-LLM compression, self-healing"
+---
+
 # OpenClaw 记忆系统 / OpenClaw Memory System
 
 > **让 OpenClaw Agent 拥有持久记忆。**
