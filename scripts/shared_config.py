@@ -28,7 +28,7 @@ def _load_config():
     if _config_cache is not None:
         return _config_cache
     if CONFIG_FILE.exists():
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        with open(CONFIG_FILE, "r", encoding="utf-8-sig") as f:
             _config_cache = json.load(f)
     else:
         _config_cache = {}
@@ -44,7 +44,7 @@ def _load_openclaw_config():
     openclaw_json = Path.home() / ".openclaw" / "openclaw.json"
     if openclaw_json.exists():
         try:
-            with open(openclaw_json, "r", encoding="utf-8") as f:
+            with open(openclaw_json, "r", encoding="utf-8-sig") as f:
                 _openclaw_config_cache = json.load(f)
         except Exception:
             _openclaw_config_cache = {}
@@ -81,9 +81,13 @@ LMSTUDIO_KEY = (
     or _lm_cfg.get("apiKey")
     or _lm_provider.get("apiKey", "")
 )
-LMSTUDIO_MODELS_URL = f"{LMSTUDIO_BASE_URL}/models"
-LMSTUDIO_EMBED_URL = f"{LMSTUDIO_BASE_URL}/embeddings"
-LMSTUDIO_CHAT_URL = f"{LMSTUDIO_BASE_URL}/chat/completions"
+# Ensure /v1 prefix for OpenAI-compatible endpoints
+_base = LMSTUDIO_BASE_URL.rstrip("/")
+if not _base.endswith("/v1"):
+    _base = _base + "/v1"
+LMSTUDIO_MODELS_URL = f"{_base}/models"
+LMSTUDIO_EMBED_URL = f"{_base}/embeddings"
+LMSTUDIO_CHAT_URL = f"{_base}/chat/completions"
 
 # ── Embedding model ──
 EMBED_MODEL = (

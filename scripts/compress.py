@@ -286,7 +286,7 @@ def main():
         print(f"处理了 {len(results)} 条观察")
 
     elif opts.input:
-        with open(opts.input, "r", encoding="utf-8") as f:
+        with open(opts.input, "r", encoding="utf-8-sig") as f:
             data = json.load(f)
         if isinstance(data, list):
             results = [compress(item) for item in data]
