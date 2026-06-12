@@ -1,6 +1,6 @@
 ﻿---
 name: agent-openclaw-memory
-description: "OpenClaw Agent 本地知识库 + 自动记忆 & 文件管理。Obsidian vault 实时同步、零 LLM 成本压缩、向量检索、自愈健康监控、自动归档/分类/清理。Local knowledge base + auto memory & file management for OpenClaw agents."
+description: "OpenClaw Agent 本地知识库 + 自进化自动管理。零 token 成本运行、Obsidian vault 实时同步、向量检索、自愈健康监控、自动归档/分类/清理，不需要人工干预。Self-evolving local knowledge base + auto memory & file management for OpenClaw agents."
 ---
 
 # OpenClaw Agent 本地知识库 + 自动记忆 & 文件管理
@@ -30,6 +30,35 @@ local knowledge base, auto memory management, long-term memory, vector search, k
 1. **Vault 内容进不了记忆** — 你用 Obsidian 记了大量笔记，但 Agent 的 `memory_search` 搜不到
 2. **会话记忆丢失** — 工具调用、决策、发现等有价值信息，对话结束就没了
 3. **记忆系统维护成本高** — 向量库、嵌入服务、同步链路，哪个断了都不知道
+
+### 为什么用脚本而不是纯 prompt
+
+ClawHub 上大部分记忆技能是纯 SKILL.md — 用 prompt 教 Agent 自己写文件、grep 搜索、手动整理。问题：
+
+- **Token 成本高**：Agent 每次存/搜/整理都要读写文件，100 条记忆整理一次烧 50K token
+- **不靠谱**：Agent 可能忘记写、分类错、不去重，全靠“自觉”
+- **不自动**：不聊天时什么都不发生，要用户手动提醒整理
+
+本技能用 30 个 Python 脚本替代 Agent 的手动操作：
+
+| 操作 | 纯 prompt 方案 | 本技能 |
+|------|---------------|--------|
+| 存一条记忆 | Agent 读+写+分类 ≈ 2000 token | compress.py **0 token** |
+| 搜一条记忆 | grep 返回原始文本 ≈ 1000+ token | memory_search 返回 3 条 ≈ 300 token |
+| 整理 100 条 | Agent 全读再分类 ≈ 50000 token | heartbeat 自动跑 **0 token** |
+| 文件膨胀 | token 线性增长 | token 不变（脚本扛） |
+
+### 自进化自动管理
+
+装好后完全自动运行，不需要人工干预：
+
+- **每 45 分钟**：heartbeat 自动执行 15 个维护任务（vault 同步、记忆压缩、健康检查、断链修复…）
+- **每 6 小时**：重型维护（概念聚合、记忆蒸馏、项目 Profile 重建）
+- **实时**：vault 文件变化 → 自动检测 → 自动同步到向量库
+- **自愈**：错误模式自动提取为抗体规则，下次遇到同类错误自动修复
+- **自进化**：执行模式自动压缩为规则，高频观察自动晋升为知识
+
+你不需要提醒 Agent “该整理了”，不需要手动清理过期文件，不需要检查向量库是否同步。脚本按时间表自动跑，出问题自动修。
 
 ### 安装
 
@@ -97,6 +126,35 @@ An OpenClaw memory enhancement skill. Solves three problems:
 1. **Vault content not in memory** — You have extensive Obsidian notes, but Agent's `memory_search` can't find them
 2. **Session memory lost** — Tool calls, decisions, discoveries — all gone when session ends
 3. **Memory system maintenance costly** — Vector DB, embedding service, sync chain — which one broke?
+
+### Why scripts instead of pure prompt
+
+Most memory skills on ClawHub are pure SKILL.md — they teach the Agent to write files, grep search, and organize manually. Problems:
+
+- **High token cost**: Agent reads/writes files for every store/search/organize. Organizing 100 memories costs ~50K tokens
+- **Unreliable**: Agent may forget to write, misclassify, skip dedup — depends on "self-discipline"
+- **Not automatic**: Nothing happens when you're not chatting. User must manually remind Agent to organize
+
+This skill replaces manual Agent operations with 30 Python scripts:
+
+| Operation | Pure prompt approach | This skill |
+|-----------|---------------------|------------|
+| Store one memory | Agent read+write+classify ≈ 2000 tokens | compress.py **0 tokens** |
+| Search one memory | grep returns raw text ≈ 1000+ tokens | memory_search returns 3 results ≈ 300 tokens |
+| Organize 100 items | Agent reads all then classifies ≈ 50K tokens | heartbeat auto-runs **0 tokens** |
+| File growth | tokens scale linearly | tokens stay flat (scripts handle it) |
+
+### Self-evolving automatic management
+
+Runs fully automatic after installation. No human intervention needed:
+
+- **Every 45 minutes**: heartbeat runs 15 maintenance tasks (vault sync, memory compression, health check, broken link repair…)
+- **Every 6 hours**: heavy maintenance (concept consolidation, memory distillation, project profile rebuild)
+- **Real-time**: vault file changes → auto-detected → auto-synced to vector DB
+- **Self-healing**: error patterns auto-extracted as antibody rules, auto-fix on next occurrence
+- **Self-evolving**: execution patterns auto-compressed into rules, frequent observations auto-promoted to knowledge
+
+You don't need to remind Agent “time to organize”. Don't need to manually clean expired files. Don't need to check if vector DB is synced. Scripts run on schedule, fix problems automatically.
 
 ### Installation
 
