@@ -1,172 +1,205 @@
 # OpenClaw Memory System
 
-A multi-layer memory system for OpenClaw agents with vault-based knowledge storage, vector search, and self-healing capabilities.
+A dual-layer memory system for OpenClaw agents. Layer 1 is OpenClaw's built-in SQLite memory (hooks + memory_search). Layer 2 is custom Python scripts for vault sync, vector indexing, zero-LLM compression, and self-healing.
 
-## What It Does
-
-- **Vault → Memory sync**: Obsidian-style vault folders auto-sync to OpenClaw's memory_search
-- **Vector indexing**: Vault chunks embedded and indexed in Qdrant for semantic search
-- **Zero-LLM compression**: Tool call observations compressed without LLM calls (0 token cost)
-- **LLM distillation**: High-importance observations distilled via LLM into structured knowledge
-- **Concept consolidation**: Related observations fused into multi-faceted knowledge entries
-- **Health monitoring**: Self-healing with antibody system, service guardians, and health scoreboards
-- **PRISM retrieval**: Intent-aware search routing (factual/procedural/reflective/recency)
-
-## Architecture
+## Architecture Overview
 
 ```
-vault (Obsidian)
-  ├── 01-日记/        → daily logs
-  ├── 02-知识/        → technical knowledge
-  ├── 04-教训/        → lessons learned
-  ├── 06-收件箱/      → inbox (auto-categorized)
-  └── 07-项目/        → project docs
-        │
-        ▼
-  vault_guardian.py ──── incremental sync ────→ workspace/memory/
-        │                                          │
-        ▼                                          ▼
-  vault_to_qdrant.py ── embed + index ────→ Qdrant (knowledge_base)
-        │
-        ▼
-  extract_memories.py ── compress + distill ──→ Qdrant + vault
-        │
-        ▼
-  memory_search (OpenClaw builtin) ←── unified search entry
+┌─────────────────────────────────────────────────────────────────┐
+│                    Layer 1: OpenClaw Built-in                    │
+│                                                                 │
+│  session-memory hook ──→ memory/YYYY-MM-DD-HHMM.md             │
+│  memory-compact hook ──→ extract on compaction                  │
+│  memory-extract hook ──→ extract on /new, /reset                │
+│                          │                                      │
+│                          ▼                                      │
+│  memory_search ◄── SQLite (main.sqlite)                        │
+│                  ├── FTS5 (BM25 keyword)                        │
+│                  ├── sqlite-vec (vector similarity)             │
+│                  └── hybrid merge                               │
+│                  ├── indexes: memory/*.md, MEMORY.md            │
+│                  └── extraPaths: skills.memory.md, self-improving│
+└─────────────────────────────────────────────────────────────────┘
+         │ sync_vault_memory.py (vault → memory/)
+         │ vault_to_qdrant.py (vault → Qdrant)
+         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Layer 2: Custom Scripts                       │
+│                                                                 │
+│  Cron (heartbeat every 45m):                                    │
+│    maintenance_orchestrator --cycle light --parallel            │
+│      ├── vault_guardian.py      (vault health + incremental sync)│
+│      ├── vault_to_qdrant.py    (vault → Qdrant vector sync)    │
+│      ├── extract_memories.py   (session → compress → Qdrant)   │
+│      ├── memory_health.py      (4-chain health check)          │
+│      ├── lmstudio_guardian.py  (embedding server health)       │
+│      └── ... (14 more tasks in DAG order)                      │
+│                                                                 │
+│  Cron (heavy every 6h):                                         │
+│    maintenance_orchestrator --cycle heavy --parallel            │
+│      ├── vault_to_qdrant.py    (full sync)                     │
+│      ├── extract_memories.py --full (consolidate + distill)    │
+│      ├── build_project_profile.py                              │
+│      └── session_cleaner.py                                    │
+│                                                                 │
+│  Qdrant (knowledge_base):                                       │
+│    ├── vault_sync pipeline (vault markdown → chunks → embed)   │
+│    ├── compress pipeline (tool calls → structured observations) │
+│    └── consolidate pipeline (concepts → fused knowledge)       │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+## Data Flow (Runtime)
+
+### Flow 1: User Chat → Memory (OpenClaw Built-in)
+
+```
+User sends message
+  → Agent processes in session
+  → User issues /new or /reset
+    → session-memory hook fires (background)
+      → Extracts last 15 user/assistant messages
+      → Saves to memory/YYYY-MM-DD-HHMM.md
+    → memory-extract hook fires
+      → Extracts valuable memories
+  → OpenClaw file watcher detects new memory/*.md
+    → Debounced reindex (1.5s)
+    → Chunks (~400 tokens, 80-token overlap)
+    → Embeds via LM Studio (nomic-embed-text-v1.5)
+    → Stores in SQLite (main.sqlite)
+      → FTS5 index (keyword)
+      → sqlite-vec (vector)
+```
+
+### Flow 2: Vault → Memory (Custom Scripts)
+
+```
+User edits vault file (Obsidian)
+  → vault_watcher.py detects mtime change (every 600s scan)
+    → Calls vault_to_qdrant.py
+      → Chunks markdown by headings (15-line segments)
+      → Embeds via LM Studio
+      → Stores in Qdrant (knowledge_base collection)
+      → Version tracking (version, is_latest, supersedes)
+
+  → vault_guardian.py runs (heartbeat, every 45m)
+    → Scans vault for stale files (>3 days with unresolved markers)
+    → Syncs changed vault files to memory/ (incremental)
+    → Checks Qdrant + LM Studio health
+    → Reports broken [[wiki links]]
+```
+
+### Flow 3: Session → Compress → Qdrant (Custom Scripts)
+
+```
+Agent makes tool calls (read, edit, exec, search, ...)
+  → observe.py registers observation to queue (~/.openclaw/observe_queue.jsonl)
+
+Heartbeat (every 45m):
+  → extract_memories.py runs
+    → Reads recent session dumps from memory/
+    → Parses user:/assistant: lines into observations
+    → Also scans trajectory JSONL files for tool calls
+    → compress.py structures each observation (0 LLM token):
+        - derive_type (file_read, command_run, error, decision, ...)
+        - extract_concepts (tech keywords)
+        - score_importance (rules: error=7, decision=8, ...)
+        - quality_gate filter (reject low-quality)
+    → Indexes to Qdrant
+
+  → extract_memories.py --full (heavy, every 6h):
+    → Step 2: Concept consolidation (LLM)
+        - Groups Qdrant observations by concept
+        - Fuses related observations via LLM (ReMe architecture)
+        - Writes fused knowledge to vault/02-知识/
+    → Step 3: Vault distillation (LLM)
+        - Clusters vault files by similarity
+        - Distills clusters into summary documents
+```
+
+### Flow 4: Search (Both Layers)
+
+```
+Agent calls memory_search(query):
+  → OpenClaw searches SQLite (main.sqlite):
+    → FTS5 keyword search (BM25)
+    → sqlite-vec vector search (cosine similarity)
+    → Hybrid merge with configurable weights
+  → Results from memory/*.md, MEMORY.md, extraPaths
+  → This is the PRIMARY search path (built-in)
+
+Agent calls unified_memory.py search (custom, optional):
+  → Searches Qdrant knowledge_base (custom vectors)
+  → Searches Mem0 (if configured)
+  → PRISM intent routing (factual/procedural/reflective/recency)
+  → This is a SUPPLEMENTARY search path
+```
+
+## What This Skill Covers
+
+### Core Scripts (included)
+
+| Script | Runs When | Purpose |
+|--------|-----------|---------|
+| `shared_config.py` | Imported by all | Centralized config (env > config.json > defaults) |
+| `qdrant_utils.py` | Imported by all | Qdrant CRUD operations |
+| `embedder.py` | On embed call | 3-level fallback: LM Studio → ONNX → numpy hash |
+| `compress.py` | Heartbeat | Zero-LLM observation structuring |
+| `observe.py` | After tool calls | Observation queue registration |
+| `sync_vault_memory.py` | Heartbeat | vault → workspace/memory/ sync |
+| `vault_to_qdrant.py` | Heartbeat/heavy | vault → Qdrant vector sync with versioning |
+| `extract_memories.py` | Heartbeat | Session → compress → Qdrant; --full: consolidate + distill |
+| `vault_guardian.py` | Heartbeat | Vault health + stale detection + incremental sync |
+| `memory_health.py` | Heartbeat | 4-chain health check (vault→memory→qdrant→embedding) |
+| `lmstudio_guardian.py` | Heartbeat | Embedding server health + degraded mode |
+| `unified_memory.py` | Manual/cron | Mem0 + Qdrant unified search + PRISM routing |
+| `maintenance_orchestrator.py` | Cron | DAG-based task scheduler |
+| `setup.py` | Once | Initial setup (config, deps, Qdrant collection) |
+
+### What OpenClaw Provides (not included, built-in)
+
+- `session-memory` hook → auto-saves session to memory/
+- `memory-compact` hook → extracts on compaction
+- `memory-extract` hook → extracts on /new, /reset
+- `memory_search` tool → hybrid SQLite search
+- `memory_get` tool → read specific memory files
+- SQLite index (main.sqlite) → FTS5 + sqlite-vec
+- File watcher → debounced reindex on memory/*.md change
+- Dreaming system → background promotion to MEMORY.md
+
+### Integration Points
+
+1. **vault → memory/**: `sync_vault_memory.py` copies vault .md to workspace/memory/, making them searchable by OpenClaw's built-in `memory_search`
+2. **vault → Qdrant**: `vault_to_qdrant.py` indexes vault content in Qdrant for custom semantic search
+3. **session → Qdrant**: `extract_memories.py` compresses session observations into Qdrant
+4. **heartbeat**: Cron triggers `maintenance_orchestrator.py` which runs all scripts in DAG order
+5. **memory_search extraPaths**: OpenClaw indexes `data/skills.memory.md` and `~/self-improving/` alongside memory/
 
 ## Quick Start
 
-### Prerequisites
-
-1. **Qdrant** running on `localhost:6333`
-2. **LM Studio** (or any OpenAI-compatible embedding server) with `nomic-embed-text-v1.5`
-3. **Obsidian vault** (or any markdown knowledge base)
-4. **Python 3.10+** with `requests`, `numpy`
-
-### Install
-
 ```bash
-# Copy the skill to your OpenClaw workspace
-cp -r openclaw-memory-system ~/.openclaw/workspace/skills/
+# 1. Install
+cd ~/.openclaw/workspace/skills
+git clone https://github.com/your-org/openclaw-memory-system.git
 
-# Run setup (creates config, directories, initializes Qdrant collection)
-cd ~/.openclaw/workspace/skills/openclaw-memory-system
-python scripts/setup.py
+# 2. Setup
+cd openclaw-memory-system
+python scripts/setup.py --vault-dir /path/to/vault
+
+# 3. Configure (edit scripts/config.json with your API keys)
+
+# 4. Add heartbeat tasks to HEARTBEAT.md:
+#    python scripts/vault_guardian.py
+#    python scripts/extract_memories.py
+#    python scripts/memory_health.py
 ```
 
-### Configure
+## Prerequisites
 
-Edit `scripts/config.json`:
-
-```json
-{
-  "vault_dir": "/path/to/your/vault",
-  "llm": {
-    "baseUrl": "https://api.deepseek.com/v1",
-    "apiKey": "your-key",
-    "model": "deepseek-chat"
-  },
-  "embedder": {
-    "baseUrl": "http://localhost:1234/v1",
-    "apiKey": "lm-studio",
-    "model": "text-embedding-nomic-embed-text-v1.5",
-    "embeddingDims": 768
-  },
-  "qdrant": {
-    "host": "localhost",
-    "port": 6333,
-    "collection": "knowledge_base"
-  }
-}
-```
-
-Or use environment variables:
-
-```bash
-export OPENCLAW_VAULT_DIR="/path/to/vault"
-export OPENCLAW_LMSTUDIO_URL="http://localhost:1234/v1"
-export OPENCLAW_LMSTUDIO_KEY="your-key"
-export OPENCLAW_QDRANT_HOST="localhost"
-export OPENCLAW_QDRANT_PORT=6333
-```
-
-### Add to HEARTBEAT.md
-
-```markdown
-# === Memory System ===
-python scripts/vault_guardian.py
-python scripts/sync_vault_memory.py
-python scripts/extract_memories.py
-python scripts/memory_health.py
-```
-
-## Scripts
-
-### Core Pipeline
-
-| Script | Function | Token Cost |
-|--------|----------|:----------:|
-| `shared_config.py` | Centralized config (single source of truth) | 0 |
-| `qdrant_utils.py` | Qdrant operations (search, scroll, upsert) | 0 |
-| `embedder.py` | Embedding service with 3-level fallback | 0 |
-| `compress.py` | Zero-LLM observation compression | 0 |
-| `observe.py` | Tool call observation queue | 0 |
-| `sync_vault_memory.py` | Vault → workspace/memory sync | 0 |
-| `vault_to_qdrant.py` | Vault → Qdrant vector sync | 0 |
-| `extract_memories.py` | Full pipeline: compress + distill + consolidate | LLM for high-importance |
-| `unified_memory.py` | Mem0 + Qdrant unified search | LLM for classification |
-
-### Health & Maintenance
-
-| Script | Function |
-|--------|----------|
-| `vault_guardian.py` | Vault health + stale detection + incremental sync |
-| `memory_health.py` | 4-chain health check (vault→memory→qdrant→embedding) |
-| `lmstudio_guardian.py` | LM Studio auto-restart + degraded mode |
-| `health_check_v2.py` | Antibody-based health patrol |
-| `context_snapshot.py` | Pre-compaction context backup |
-| `compress_to_rule.py` | Execution pattern → rule/antibody extraction |
-| `maintenance_orchestrator.py` | DAG-based task scheduler |
-
-### Key Design Decisions
-
-1. **Zero-token-first**: compress.py does all structuring without LLM
-2. **3-level embedding fallback**: LM Studio → ONNX → numpy hash
-3. **Version tracking**: Qdrant points carry `version`, `is_latest`, `supersedes` fields
-4. **Quality gate**: compress results filtered before indexing (importance ≥ threshold)
-5. **PRISM retrieval**: Intent classification (factual/procedural/reflective/recency) routes to optimal search strategy
-6. **Antibody system**: Error patterns → auto-fix rules, stored in `data/antibodies.json`
-
-## Customization
-
-### Adding New Vault Directories
-
-Edit `VAULT_SUBDIRS` in `unified_memory.py` and `SYNC_DIRS` in `vault_to_qdrant.py`.
-
-### Changing Embedding Model
-
-Update `embedder.model` in `config.json`. The system auto-adapts dimensions.
-
-### Adjusting Quality Gate
-
-Edit `IMPORTANCE_RULES` in `compress.py` to change what gets indexed.
-
-## Troubleshooting
-
-```bash
-# Check memory health
-python scripts/memory_health.py
-
-# Check Qdrant status
-curl http://localhost:6333/collections/knowledge_base
-
-# Check LM Studio embedding
-python scripts/embedder.py "test text"
-
-# Force full sync
-python scripts/vault_to_qdrant.py
-
-# Check for stale vault files
-python scripts/vault_guardian.py
-```
+| Component | Required | Purpose |
+|-----------|:--------:|---------|
+| Python 3.10+ | Yes | Script runtime |
+| Qdrant | Yes | Custom vector store |
+| LM Studio / embedding server | Yes | Text embeddings |
+| Obsidian vault | Yes | Knowledge source |
+| LLM API (DeepSeek etc) | Optional | Memory distillation (high-importance only) |
