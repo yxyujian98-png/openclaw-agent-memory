@@ -1,23 +1,23 @@
 ﻿---
-name: obsidian-openclaw-memory
-description: "OpenClaw Agent 记忆系统：Obsidian vault 同步、Qdrant 向量检索、零 LLM 压缩、自愈监控 | OpenClaw Agent memory system: vault sync, vector search, zero-LLM compression, self-healing"
+name: agent-openclaw-memory
+description: "OpenClaw Agent 本地知识库 + 自动记忆管理。Obsidian vault 自动同步、零 LLM 成本压缩、向量检索、自愈健康监控。Local knowledge base + auto memory management for OpenClaw agents."
 ---
 
-# OpenClaw Agent 记忆系统 / OpenClaw Agent Memory System
+# OpenClaw Agent 本地知识库 & 自动记忆管理
 
-> **让 OpenClaw Agent 拥有持久记忆。**
+> **让 OpenClaw Agent 拥有本地知识库和自动记忆管理。**
 >
-> 自动同步 Obsidian 知识库、向量检索、零 LLM 成本压缩、自愈健康监控。
+> Obsidian vault 自动同步 → Agent 可搜索。会话观察零 LLM 成本压缩 → 不丢失。向量检索 + 嵌入服务 + 同步链路 → 自动健康监控 + 自愈修复。
 >
-> **Give your OpenClaw Agent persistent memory.**
+> **Build a local knowledge base + automatic memory management for your OpenClaw Agent.**
 >
-> Auto-sync Obsidian vault, vector search, zero-LLM compression, self-healing health monitoring.
+> Auto-sync Obsidian vault → searchable by Agent. Zero-LLM compression of session observations → nothing lost. Vector search + embedding + sync chain → auto health monitoring + self-healing.
 
 ## 关键词 / Keywords
 
-记忆系统、长期记忆、向量检索、知识库同步、Obsidian vault、Qdrant、embedding、agent memory、零 LLM 压缩、自愈监控、vault 同步、概念聚合、记忆蒸馏、健康检查
+本地知识库、自动记忆管理、长期记忆、向量检索、知识库同步、Obsidian vault、Qdrant、embedding、agent memory、零 LLM 压缩、自愈监控、vault 同步、概念聚合、记忆蒸馏、健康检查、自动维护、DAG 调度、抗体自愈
 
-memory system, long-term memory, vector search, knowledge sync, Obsidian vault, Qdrant, embedding, agent memory, zero-LLM compression, self-healing, vault sync, concept consolidation, memory distillation, health monitoring
+local knowledge base, auto memory management, long-term memory, vector search, knowledge sync, Obsidian vault, Qdrant, embedding, agent memory, zero-LLM compression, self-healing, vault sync, concept consolidation, memory distillation, health monitoring, auto maintenance, DAG scheduler, antibody healing
 
 ---
 
