@@ -1,17 +1,17 @@
 ﻿---
 name: agent-openclaw-memory
-description: "OpenClaw Agent 本地知识库 + 自动记忆管理。Obsidian vault 自动同步、零 LLM 成本压缩、向量检索、自愈健康监控。Local knowledge base + auto memory management for OpenClaw agents."
+description: "OpenClaw Agent 本地知识库 + 自动记忆 & 文件管理。Obsidian vault 实时同步、零 LLM 成本压缩、向量检索、自愈健康监控、自动归档/分类/清理。Local knowledge base + auto memory & file management for OpenClaw agents."
 ---
 
-# OpenClaw Agent 本地知识库 & 自动记忆管理
+# OpenClaw Agent 本地知识库 + 自动记忆 & 文件管理
 
-> **让 OpenClaw Agent 拥有本地知识库和自动记忆管理。**
+> **让 OpenClaw Agent 拥有本地知识库和自动记忆 & 文件管理。**
 >
-> Obsidian vault 自动同步 → Agent 可搜索。会话观察零 LLM 成本压缩 → 不丢失。向量检索 + 嵌入服务 + 同步链路 → 自动健康监控 + 自愈修复。
+> Obsidian vault 实时同步 → Agent 可搜索。会话观察零 LLM 成本压缩 → 不丢失。自动归档/分类/清理 → vault 自己管自己。向量检索 + 嵌入服务 + 同步链路 → 自动健康监控 + 自愈修复。
 >
-> **Build a local knowledge base + automatic memory management for your OpenClaw Agent.**
+> **Build a local knowledge base + automatic memory & file management for your OpenClaw Agent.**
 >
-> Auto-sync Obsidian vault → searchable by Agent. Zero-LLM compression of session observations → nothing lost. Vector search + embedding + sync chain → auto health monitoring + self-healing.
+> Auto-sync Obsidian vault → searchable by Agent. Zero-LLM compression → nothing lost. Auto archive/categorize/cleanup → vault manages itself. Vector search + embedding + sync chain → auto health monitoring + self-healing.
 
 ## 关键词 / Keywords
 
