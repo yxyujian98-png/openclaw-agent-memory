@@ -1,0 +1,25 @@
+{
+  "name": "openclaw-memory-system",
+  "version": "1.0.0",
+  "description": "Multi-layer memory system for OpenClaw agents: vault sync, vector search, zero-LLM compression, self-healing",
+  "author": "OpenClaw Community",
+  "license": "MIT",
+  "keywords": ["openclaw", "memory", "vault", "qdrant", "obsidian", "vector-search", "agent-memory"],
+  "openclaw": {
+    "skill": true,
+    "minVersion": "2026.5.0",
+    "requires": {
+      "python": ">=3.10",
+      "services": ["qdrant"],
+      "optional_services": ["lmstudio"]
+    }
+  },
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "package.json",
+    "scripts/*.py",
+    "templates/*",
+    "docs/*"
+  ]
+}

@@ -1,0 +1,25 @@
+# State files
+scripts/.vault_sync_state.json
+scripts/.guardian_state.json
+scripts/.vault_watcher_state.json
+scripts/.extract_memories_processed.json
+scripts/.memory_dedup.json
+
+# Data directory (runtime state)
+data/
+
+# Config with secrets
+scripts/config.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
